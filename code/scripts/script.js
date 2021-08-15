@@ -28,8 +28,8 @@ let audioButtonPressedIsReady = false;
 audioButtonPressed.addEventListener("canplaythrough", function () { audioButtonPressedIsReady = true; });
 
 /* Mouse Input */
-let mouseX = 0;
-let mouseY = 0;
+let mouseX;
+let mouseY;
 let mouseLeftPressed = false,
     mouseRightPressed = false;
 
@@ -42,11 +42,8 @@ document.addEventListener("mouseup", mouseUpHandler, false);
 
 function mouseMoveHandler(e)
 {
-    //console.log("Mouse moved.\n");
     mouseX = e.clientX;
     mouseY = e.clientY;
-
-    console.log("MouseX: " + mouseX + "\n" + "MouseY: " + mouseY + "\n");
 }
 
 function mouseDownHandler(e)
@@ -108,6 +105,216 @@ function keyUpHandler(e)
 }
 
 /* Class Definitions */
+class Rectangle
+{
+	constructor(x, y, w, h, color)
+	{
+		this.x = x;
+		this.y = y;
+		this.width = w;
+		this.height = h;
+		this.fillColor = color;
+	}
+
+	draw()
+	{
+		ctx.fillStyle = this.fillColor;
+		ctx.fillRect(this.x, this.y, this.width, this.height);
+	}
+}
+
+class EnemyManager
+{
+	constructor()
+	{
+		// An array of all enemy objects.
+		this.enemy = [];
+		// An array of all KillSurface objects. This will be used for collision detection.
+		this.killSurface = new KillSurface(50, SCREEN_HEIGHT-50, SCREEN_WIDTH-100, 50, "#ff0000");
+		this.spawnSurface = new SpawnSurface(0, 0, 500, 50, "#4287f5");
+		this.spawnInterval = 1000;
+		this.spawnTick = Date.now();
+		this.maxEnemies = 10;
+		this.timerSurface = new TimerSurface();
+	}
+
+	update()
+	{
+		this.spawnSurface.draw();
+		this.killSurface.draw();
+		this.timerSurface.draw();
+		this.timerSurface.update();
+
+		if (tp1 - this.spawnTick >= this.spawnInterval)
+		{
+			if (this.enemy.length < this.maxEnemies)
+			{
+				let e = this.spawnSurface.getEnemyInstance();
+				if (typeof e != "undefined")
+				{
+					this.enemy[this.enemy.length] = e;
+				};
+				console.log(this.enemy);
+				this.spawnTick = Date.now();
+			}
+		}
+
+
+		for (let i = 0; i < this.enemy.length; i++)
+		{
+			this.enemy[i].update();
+			// Let enemies get faster the lower the timer surface is.
+			this.enemy[i].velY = this.timerSurface.tVal;
+		}
+
+		this.collisionDetection();
+	}
+
+	draw()
+	{
+	}
+
+	collisionDetection()
+	{
+		// Enemy to kill surface collisions
+		for (let n = 0; n < this.enemy.length; n++)
+		{
+			// If enemy has collided with kill surface, delete it.
+			if (this.enemy[n].x >= this.killSurface.x && this.enemy[n].x+this.enemy[n].width < this.killSurface.x+this.killSurface.width &&
+				this.enemy[n].y >= this.killSurface.y && this.enemy[n].y+this.enemy[n].height < this.killSurface.y+this.killSurface.height)
+			{
+				// The splice function reindexes the array, so we decrease n by 1 in order to not skip the next item which is at the location n.
+				this.enemy.splice(n, 1);
+				n -= 1;
+			}
+
+			// Mouse to enemy collisions
+			if (mouseX >= this.enemy[n].x && mouseX < this.enemy[n].x+this.enemy[n].width && mouseY >= this.enemy[n].y && mouseY < this.enemy[n].y+this.enemy[n].height)
+			{
+				if (mouseLeftPressed)
+				{
+					if (mouseLeftPressedBefore == false)
+					{
+						this.enemy.splice(n, 1);
+						n -= 1;
+						mouseLeftPressedBefore = true;
+					}
+				}
+				if (!mouseLeftPressed)
+				{
+					mouseLeftPressedBefore = false;
+				}
+			}
+		}
+	}
+}
+
+class TimerSurface extends Rectangle
+{
+	constructor(x, y, w, h, color)
+	{
+		super(x, y, w, h, color);
+		this.x = 0;
+		this.y = 0;
+		this.w = 50;
+		this.h = 250;
+		this.tMin = 1.0;
+		this.tMax = 5.0;
+		this.tVal = 1.0;
+		this.tIncrementInterval = 500;
+		this.tIncrementTick = Date.now();
+		this.tIncrementValue = 0.1;
+		this.tFillColor = "#000000";
+	}
+
+	update()
+	{
+		if (tp1 - this.tIncrementTick >= this.tIncrementInterval)
+		{
+			if (this.tVal < this.tMax)
+			{
+				this.tVal += this.tIncrementValue;
+				this.tIncrementTick = Date.now();
+			}
+		}
+	}
+
+	draw()
+	{
+		ctx.fillStyle = this.tFillColor;
+		let yOffset = this.h - (this.tVal/this.tMax * this.h);
+		ctx.fillRect(this.x, this.y+yOffset, this.w, (this.tVal/this.tMax) * this.h);
+	}
+}
+
+class Enemy extends Rectangle
+{
+	constructor(x, y, w, h, color)
+	{
+		super(x, y, w, h, color);
+		this.velX = 0;
+		this.velY = 1;
+	}
+
+	update()
+	{
+		this.x += this.velX;
+		this.y += this.velY;
+		super.draw();
+	}
+}
+
+class SpawnSurface extends Rectangle
+{
+	constructor(x, y, w, h, color)
+	{
+		super(x, y, w, h, color);
+		this.spawnInterval = 500;
+		this.spawnTick = Date.now();
+		this.spawnMinW = 45;
+		this.spawnMinH = 45;
+		this.spawnMaxW = 50;
+		this.spawnMaxH = 50;
+	}
+
+	update()
+	{
+	}
+
+	draw()
+	{
+		super.draw();
+	}
+
+	getEnemyInstance()
+	{
+		let x = getRandomIntInclusive(this.x, this.x+this.width);
+		let y = getRandomIntInclusive(this.y, this.x+this.height);
+		let w = getRandomIntInclusive(this.spawnMinW, this.spawnMaxW);
+		let h = getRandomIntInclusive(this.spawnMinH, this.spawnMaxH);
+		let c = "#ff8800";
+		return new Enemy(x, y, w, h, c);
+		this.spawnTick = Date.now();
+	}
+}
+
+class KillSurface extends Rectangle
+{
+	constructor(x, y, w, h, color)
+	{
+		super(x, y, w, h, color);
+	}
+
+	update()
+	{
+	}
+
+	draw()
+	{
+		super.draw();
+	}
+}
+
 class Button
 {
 	constructor()
@@ -241,6 +448,7 @@ function getRandomIntInclusive(min, max)
 
 let button = new Button;
 
+let enemyManager = new EnemyManager;
 // Time variables
 let tp1 = Date.now();
 let tp2 = Date.now();
@@ -258,6 +466,7 @@ window.main = function ()
 
     ctx.clearRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
 	button.update();
+	enemyManager.update();
 }
 
 // Start the game loop
