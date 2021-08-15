@@ -130,48 +130,89 @@ class EnemyManager
 		// An array of all enemy objects.
 		this.enemy = [];
 		// An array of all KillSurface objects. This will be used for collision detection.
-		this.killSurface = new KillSurface(50, SCREEN_HEIGHT-50, SCREEN_WIDTH-100, 50, "#ff0000");
-		this.spawnSurface = new SpawnSurface(0, 0, 500, 50, "#4287f5");
+		this.killSurface = new KillSurface(25, SCREEN_HEIGHT-75, SCREEN_WIDTH-175, 250, "#e83a1c");
+		this.spawnSurface = new SpawnSurface(25, -50, SCREEN_WIDTH-175, 50, "#4287f5");
 		this.spawnInterval = 1000;
 		this.spawnTick = Date.now();
 		this.maxEnemies = 10;
-		this.timerSurface = new TimerSurface();
+		this.timerSurface = new TimerSurface(SCREEN_WIDTH-75, SCREEN_HEIGHT/2-165, 50, 500, "#ff551c");
+		this.timerSurfaceButton = new Button();
+		this.points = 10;
+		this.gameOver = false;
 	}
 
 	update()
 	{
-		this.spawnSurface.draw();
-		this.killSurface.draw();
-		this.timerSurface.draw();
-		this.timerSurface.update();
+		ctx.fillStyle = "#808080";
+		ctx.fillRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
+		ctx.fillStyle = "#ffffff";
+		ctx.fillRect(SCREEN_WIDTH-125, 25, 25, SCREEN_HEIGHT-50);
 
-		if (tp1 - this.spawnTick >= this.spawnInterval)
+		if (!this.gameOver)
 		{
-			if (this.enemy.length < this.maxEnemies)
+			this.spawnSurface.draw();
+			this.killSurface.draw();
+
+			this.timerSurface.draw();
+			this.timerSurface.update();
+
+			this.draw();
+
+			if (tp1 - this.spawnTick >= this.spawnInterval)
 			{
-				let e = this.spawnSurface.getEnemyInstance();
-				if (typeof e != "undefined")
+				if (this.enemy.length < this.maxEnemies)
 				{
-					this.enemy[this.enemy.length] = e;
-				};
-				console.log(this.enemy);
+					let e = this.spawnSurface.getEnemyInstance();
+					if (typeof e != "undefined")
+					{
+						this.enemy[this.enemy.length] = e;
+					};
+					console.log(this.enemy);
+					this.spawnTick = Date.now();
+				}
+			}
+
+
+			for (let i = 0; i < this.enemy.length; i++)
+			{
+				this.enemy[i].update();
+				// Let enemies get faster the lower the timer surface is.
+				this.enemy[i].velY = this.timerSurface.tVal;
+			}
+
+			this.collisionDetection();
+
+			if (this.points <= 0)
+			{
+				this.gameOver = true;
 				this.spawnTick = Date.now();
 			}
 		}
-
-
-		for (let i = 0; i < this.enemy.length; i++)
+		else
 		{
-			this.enemy[i].update();
-			// Let enemies get faster the lower the timer surface is.
-			this.enemy[i].velY = this.timerSurface.tVal;
+			// Show game over screen.
+			ctx.textAlign = "center";
+			ctx.fillStyle = "#000000";
+			ctx.font = "48px sans-serif";
+			ctx.fillText("You fought well.", SCREEN_WIDTH/2, SCREEN_HEIGHT/2);
+			ctx.fillText("Press left mouse button to try again.", SCREEN_WIDTH/2, SCREEN_HEIGHT/2 + 64);
+			if (tp1 - this.spawnTick >= this.spawnInterval)
+			{
+				if (mouseLeftPressed)
+				{
+					this.reset();
+				}
+			}
 		}
-
-		this.collisionDetection();
 	}
 
 	draw()
 	{
+		// Draw points (score)
+		ctx.textAlign = "center";
+		ctx.font = "48px sans-serif";
+		ctx.fillStyle = "#ffffff";
+		ctx.fillText(this.points, SCREEN_WIDTH/2, 64);
 	}
 
 	collisionDetection()
@@ -186,6 +227,7 @@ class EnemyManager
 				// The splice function reindexes the array, so we decrease n by 1 in order to not skip the next item which is at the location n.
 				this.enemy.splice(n, 1);
 				n -= 1;
+				this.points -= 1;
 			}
 
 			// Mouse to enemy collisions
@@ -197,6 +239,7 @@ class EnemyManager
 					{
 						this.enemy.splice(n, 1);
 						n -= 1;
+						this.points += 1;
 						mouseLeftPressedBefore = true;
 					}
 				}
@@ -207,43 +250,81 @@ class EnemyManager
 			}
 		}
 	}
+
+	reset()
+	{
+		// An array of all enemy objects.
+		this.enemy = [];
+		// An array of all KillSurface objects. This will be used for collision detection.
+		this.killSurface = new KillSurface(25, SCREEN_HEIGHT-75, SCREEN_WIDTH-175, 50, "#ff0000");
+		this.spawnSurface = new SpawnSurface(25, -50, SCREEN_WIDTH-175, 50, "#4287f5");
+		this.spawnInterval = 1000;
+		this.spawnTick = Date.now();
+		this.maxEnemies = 10;
+		this.timerSurface = new TimerSurface(SCREEN_WIDTH-75, SCREEN_HEIGHT/2-165, 50, 500, "#ff551c");
+		this.timerSurfaceButton = new Button();
+		this.points = 1;
+		this.gameOver = false;
+	}
 }
 
 class TimerSurface extends Rectangle
 {
-	constructor(x, y, w, h, color)
+	constructor(x = 0, y = 0, w = 50, h = 250, color)
 	{
 		super(x, y, w, h, color);
-		this.x = 0;
-		this.y = 0;
-		this.w = 50;
-		this.h = 250;
+		this.x = x;
+		this.y = y;
+		this.w = w;
+		this.h = h;
 		this.tMin = 1.0;
 		this.tMax = 5.0;
 		this.tVal = 1.0;
 		this.tIncrementInterval = 500;
 		this.tIncrementTick = Date.now();
 		this.tIncrementValue = 0.1;
-		this.tFillColor = "#000000";
+		this.tFillColor = "#444444";
+		this.tButton = new Button(this.x, this.y, this.w, this.h, true);
+		this.tButton.text = "";
 	}
 
 	update()
 	{
+		this.tButton.update();
 		if (tp1 - this.tIncrementTick >= this.tIncrementInterval)
 		{
-			if (this.tVal < this.tMax)
+			if (this.tButton.isPressed == true)
+			{
+				if (this.tVal > this.tMin)
+				{
+					this.tVal -= this.tIncrementValue*2;
+					this.tIncrementTick = Date.now();
+				}
+			}
+			else if (this.tVal < this.tMax)
 			{
 				this.tVal += this.tIncrementValue;
 				this.tIncrementTick = Date.now();
+			}
+
+			// Punish the user for holding the timer surface bar at the lowest point by increasing it's rate of rising.
+			if (this.tVal <= this.tMin)
+			{
+				this.tMin += 0.01;
+				this.tVal = this.tMin;
 			}
 		}
 	}
 
 	draw()
 	{
+		// Draw minimum bar
 		ctx.fillStyle = this.tFillColor;
 		let yOffset = this.h - (this.tVal/this.tMax * this.h);
 		ctx.fillRect(this.x, this.y+yOffset, this.w, (this.tVal/this.tMax) * this.h);
+		ctx.fillStyle = "#ff8800";
+		yOffset = this.h - (this.tMin/this.tMax) * this.h;
+		ctx.fillRect(this.x, this.y+yOffset, this.w, (this.tMin/this.tMax) * this.h);
 	}
 }
 
@@ -317,12 +398,12 @@ class KillSurface extends Rectangle
 
 class Button
 {
-	constructor()
+	constructor(x = 0, y = 0, w = 150, h = 50, visible = true)
 	{
-        this.x = 0;
-        this.y = 0;
-        this.width = 150;
-        this.height = 50;
+        this.x = x;
+        this.y = y;
+        this.width = w;
+        this.height = h;
         // Colors
         this.colEdgeNeutral = "#888888";
         this.colFaceNeutral = "#00000044";
@@ -338,7 +419,7 @@ class Button
 
         this.text = "Button";
         this.isPressed = false;
-        this.isVisible = true;
+        this.isVisible = visible;
 		this.playSound = true;
         // How often can the user click the button.
         this.clickSpeed = 50;
@@ -446,8 +527,6 @@ function getRandomIntInclusive(min, max)
     return Math.floor(Math.random() * (max - min + 1) + min);
 }
 
-let button = new Button;
-
 let enemyManager = new EnemyManager;
 // Time variables
 let tp1 = Date.now();
@@ -465,7 +544,6 @@ window.main = function ()
     tp1 = tp2;
 
     ctx.clearRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
-	button.update();
 	enemyManager.update();
 }
 
